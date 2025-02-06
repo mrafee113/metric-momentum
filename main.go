@@ -205,7 +205,7 @@ func cmdPrint() {
 			percentageText = fmt.Sprintf("%3d%%", percentage)
 			countText      = fmt.Sprintf("%3d", count)
 			doneCountText  = fmt.Sprintf("%3d", doneCount)
-			idText         = fmt.Sprintf("%02d", id)
+			idText         = fmt.Sprintf("%-2d", id)
 		)
 
 		if *colorize {
