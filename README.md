@@ -1,12 +1,15 @@
 # metric-momentum
+A todolist in the form of a progress tracker.
 
 ## TODO
-
-I want to make an app in python.
-write me a code in python that manages progresses.
-- the app should be able to register a new progress. a progress should have a name (unique), a unit of measurement, a  number of units, and the current state of the progression in units.
-- the app should be able to increase progression by 1 unit.
-- the app should be able to remove units.
-- the app should store its data in a text file (progression per line).
-- the app should be able to pretty-print a progression given its name
-- the app should be able to pretty-print all progressions.
+* + factor in `id` when printing
+* + refactor `name` to `body`
+* + add datetime features
+* + archive data upon deletion instead of actual deletion
+* + add inc/dec functions
+* + utilize `flag.usage` for a better help handling
+* + write your log messages way better than this shit
+* + fix the printing appearance
+* use `x days/hours ago` in print (maybe not)
+* write test cases
+* figure out metadata stuff, like vars, etc... (can't remember what I meant)
