@@ -2,6 +2,7 @@ export BLACK='${color 000000}' # #000000
 export RED='${color B61C1C}' # #B61C1C
 export LIGHT_RED='${color f28585}' # #f28585
 export LIGHT_ORANGE='${color e88761}' # #e88761
+export ORANGE='${color e87346}' # #e87346
 export GREEN='${color 21FC00}' # #21FC00
 export BROWN='${color 5E1818}' # #5E1818
 export BLUE='${color 4895bf}' # #4895bf

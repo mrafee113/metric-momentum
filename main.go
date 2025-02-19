@@ -22,6 +22,7 @@ type progress struct {
 	count        int
 	doneCount    int
 	creationDate time.Time
+	priority     string
 }
 
 var (
@@ -153,6 +154,45 @@ func colorizeText(text, color string) string {
 	return fmt.Sprintf("%s%s%s", colorCode, text, defaultColor)
 }
 
+func formatDuration(creationDate time.Time, color bool) (result string) {
+	duration := time.Since(creationDate)
+	hours := duration.Hours()
+	minutes := duration.Minutes()
+	years := hours / 24 / 365
+	months := hours / 24 / 30
+	weeks := hours / 24 / 7
+	days := hours / 24
+	if years > 1 {
+		result = fmt.Sprintf("%.1fy ", years)
+	} else if months > 1 {
+		result = fmt.Sprintf("%.1fmo", months)
+	} else if weeks >= 2 {
+		result = fmt.Sprintf("%.1fw ", weeks)
+	} else if days >= 2 {
+		result = fmt.Sprintf("%.0fd ", days)
+	} else if hours > 1 {
+		result = fmt.Sprintf("%.1fh ", hours)
+	} else {
+		result = fmt.Sprintf("%.0fm ", minutes)
+	}
+	result = fmt.Sprintf("%-5s", result)
+	result = result[:5]
+	if color {
+		if weeks <= 1 {
+			result = colorizeText(result, "WHITE")
+		} else if weeks <= 2 {
+			result = colorizeText(result, "LIGHT_ORANGE")
+		} else if weeks < 6 {
+			result = colorizeText(result, "ORANGE")
+		} else if weeks < 12 {
+			result = colorizeText(result, "RED")
+		} else {
+			result = colorizeText(result, "DARK_GREY")
+		}
+	}
+	return result
+}
+
 func usage() {
 	version, err := os.ReadFile("version")
 	if err != nil {
@@ -200,9 +240,13 @@ func cmdPrint() {
 	}
 
 	slices.SortFunc(data, func(a, b progress) int {
-		if a.body < b.body {
+		aBody, bBody := gomoji.RemoveEmojis(a.body), gomoji.RemoveEmojis(b.body)
+		aBody, bBody = strings.ToLower(aBody), strings.ToLower(bBody)
+		aBody, bBody = strings.TrimSpace(aBody), strings.TrimSpace(bBody)
+
+		if aBody < bBody {
 			return -1
-		} else if a.body > b.body {
+		} else if aBody > bBody {
 			return 1
 		} else {
 			return 0
@@ -214,6 +258,7 @@ func cmdPrint() {
 		body, unit, count, doneCount := prog.body, prog.unit, prog.count, prog.doneCount
 		bar_text := barText(prog.count, prog.doneCount, width)
 		percentage := 100 * prog.count / prog.doneCount
+		durationText := formatDuration(prog.creationDate, false)
 		var (
 			percentageText = fmt.Sprintf("%3d%%", percentage)
 			countText      = fmt.Sprintf("%3d", count)
@@ -259,13 +304,15 @@ func cmdPrint() {
 				percentageText = colorizeText(percentageText, "PRI_1")
 			}
 			doneCountText = colorizeText(doneCountText, "COLOR_DONE")
+
+			durationText = formatDuration(prog.creationDate, true)
 		}
 
 		line := fmt.Sprintf(
-			"%s %s/%s(%s) %s (%s) %s",
+			"%s %s/%s(%s) %s %s (%s) %s",
 			idText, countText, doneCountText,
 			percentageText, bar_text,
-			unit, body,
+			durationText, unit, body,
 		)
 		lines = append(lines, line)
 	}
