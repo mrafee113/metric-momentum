@@ -6,10 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/forPelevin/gomoji"
 )
 
 type progress struct {
@@ -196,8 +199,18 @@ func cmdPrint() {
 		panic(err)
 	}
 
+	slices.SortFunc(data, func(a, b progress) int {
+		if a.body < b.body {
+			return -1
+		} else if a.body > b.body {
+			return 1
+		} else {
+			return 0
+		}
+	})
 	var lines []string
-	for id, prog := range data {
+	for _, prog := range data {
+		id := prog.id
 		body, unit, count, doneCount := prog.body, prog.unit, prog.count, prog.doneCount
 		bar_text := barText(prog.count, prog.doneCount, width)
 		percentage := 100 * prog.count / prog.doneCount
@@ -224,6 +237,9 @@ func cmdPrint() {
 				}
 			}
 			body = strings.Join(bodySlice, " ")
+			body = gomoji.ReplaceEmojisWithFunc(body, func(em gomoji.Emoji) string {
+				return fmt.Sprintf("${font2}%s${font}", em.Character)
+			})
 
 			idText = colorizeText(idText, "COLOR_NUMBER")
 			if 0 <= percentage && percentage < 20 {
