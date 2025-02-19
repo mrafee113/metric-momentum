@@ -103,6 +103,7 @@ func readData(filename string) []progress {
 				count:        count,
 				doneCount:    doneCount,
 				creationDate: creationDate,
+				priority:     values[5],
 			},
 		)
 	}
@@ -117,12 +118,13 @@ func writeData(filename string, data []progress) {
 			log.Fatalf("Error occured while marshalling creation date to json.\n%v\n%v\n", prog.creationDate, err)
 		}
 		text += fmt.Sprintf(
-			"%s;%s;%d;%d;%s\n",
+			"%s;%s;%d;%d;%s;%s\n",
 			prog.body,
 			prog.unit,
 			prog.count,
 			prog.doneCount,
 			string(jsonDate),
+			prog.priority,
 		)
 	}
 	err := os.WriteFile(filename, []byte(text), 0644)
@@ -145,8 +147,12 @@ func barText(count, doneCount, width int) string {
 	}
 }
 
-func colorizeText(text, color string) string {
-	defaultColor := os.Getenv("DEFAULT")
+func colorizeText(text, color, defaultColor string) string {
+	if defaultColor == "" {
+		defaultColor = os.Getenv("DEFAULT")
+	} else {
+		defaultColor = os.Getenv(defaultColor)
+	}
 	colorCode := os.Getenv(color)
 	if colorCode == "" {
 		return text
@@ -179,15 +185,15 @@ func formatDuration(creationDate time.Time, color bool) (result string) {
 	result = result[:5]
 	if color {
 		if weeks <= 1 {
-			result = colorizeText(result, "WHITE")
+			result = colorizeText(result, "WHITE", "")
 		} else if weeks <= 2 {
-			result = colorizeText(result, "LIGHT_ORANGE")
+			result = colorizeText(result, "LIGHT_ORANGE", "")
 		} else if weeks < 6 {
-			result = colorizeText(result, "ORANGE")
+			result = colorizeText(result, "ORANGE", "")
 		} else if weeks < 12 {
-			result = colorizeText(result, "RED")
+			result = colorizeText(result, "RED", "")
 		} else {
-			result = colorizeText(result, "DARK_GREY")
+			result = colorizeText(result, "DARK_GREY", "")
 		}
 	}
 	return result
@@ -240,6 +246,15 @@ func cmdPrint() {
 	}
 
 	slices.SortFunc(data, func(a, b progress) int {
+		if a.priority != "" && b.priority == "" {
+			return -1
+		} else if a.priority == "" && b.priority != "" {
+			return 1
+		} else if a.priority < b.priority {
+			return -1
+		} else if a.priority > b.priority {
+			return 1
+		}
 		aBody, bBody := gomoji.RemoveEmojis(a.body), gomoji.RemoveEmojis(b.body)
 		aBody, bBody = strings.ToLower(aBody), strings.ToLower(bBody)
 		aBody, bBody = strings.TrimSpace(aBody), strings.TrimSpace(bBody)
@@ -259,6 +274,10 @@ func cmdPrint() {
 		bar_text := barText(prog.count, prog.doneCount, width)
 		percentage := 100 * prog.count / prog.doneCount
 		durationText := formatDuration(prog.creationDate, false)
+		priority := prog.priority
+		if priority != "" {
+			priority = fmt.Sprintf("(%s)", priority)
+		}
 		var (
 			percentageText = fmt.Sprintf("%3d%%", percentage)
 			countText      = fmt.Sprintf("%3d", count)
@@ -267,18 +286,39 @@ func cmdPrint() {
 		)
 
 		if *colorize {
+			var defaultColor string
+			if priority != "" {
+				switch priority[1] {
+				case 'A':
+					priority = colorizeText(priority, "PRI_A", "")
+					body = colorizeText(body, "PRI_A", "")
+					defaultColor = "PRI_A"
+				case 'B':
+					priority = colorizeText(priority, "PRI_B", "")
+					body = colorizeText(body, "PRI_B", "")
+					defaultColor = "PRI_B"
+				case 'C':
+					priority = colorizeText(priority, "PRI_C", "")
+					body = colorizeText(body, "PRI_C", "")
+					defaultColor = "PRI_C"
+				case 'D':
+					priority = colorizeText(priority, "PRI_D", "")
+					body = colorizeText(body, "PRI_D", "")
+					defaultColor = "PRI_D"
+				}
+			}
 			bodySlice := strings.Split(body, " ")
 			for ndx := 0; ndx < len(bodySlice); ndx++ {
-				if len(bodySlice[ndx]) < 1 {
+				if len(bodySlice[ndx]) < 2 {
 					continue
 				}
 				switch bodySlice[ndx][0] {
 				case '+':
-					bodySlice[ndx] = colorizeText(bodySlice[ndx], "COLOR_PLUS")
+					bodySlice[ndx] = colorizeText(bodySlice[ndx], "COLOR_PLUS", defaultColor)
 				case '-':
-					bodySlice[ndx] = colorizeText(bodySlice[ndx], "COLOR_DASH")
+					bodySlice[ndx] = colorizeText(bodySlice[ndx], "COLOR_DASH", defaultColor)
 				case '@':
-					bodySlice[ndx] = colorizeText(bodySlice[ndx], "COLOR_ATSIGN")
+					bodySlice[ndx] = colorizeText(bodySlice[ndx], "COLOR_ATSIGN", defaultColor)
 				}
 			}
 			body = strings.Join(bodySlice, " ")
@@ -286,33 +326,36 @@ func cmdPrint() {
 				return fmt.Sprintf("${font2}%s${font}", em.Character)
 			})
 
-			idText = colorizeText(idText, "COLOR_NUMBER")
+			idText = colorizeText(idText, "COLOR_NUMBER", "")
 			if 0 <= percentage && percentage < 20 {
-				bar_text = colorizeText(bar_text, "PRI_5")
-				percentageText = colorizeText(percentageText, "PRI_5")
+				bar_text = colorizeText(bar_text, "PRI_5", "")
+				percentageText = colorizeText(percentageText, "PRI_5", "")
 			} else if 20 <= percentage && percentage < 40 {
-				bar_text = colorizeText(bar_text, "PRI_4")
-				percentageText = colorizeText(percentageText, "PRI_4")
+				bar_text = colorizeText(bar_text, "PRI_4", "")
+				percentageText = colorizeText(percentageText, "PRI_4", "")
 			} else if 40 <= percentage && percentage < 60 {
-				bar_text = colorizeText(bar_text, "PRI_3")
-				percentageText = colorizeText(percentageText, "PRI_3")
+				bar_text = colorizeText(bar_text, "PRI_3", "")
+				percentageText = colorizeText(percentageText, "PRI_3", "")
 			} else if 60 <= percentage && percentage < 80 {
-				bar_text = colorizeText(bar_text, "PRI_2")
-				percentageText = colorizeText(percentageText, "PRI_2")
+				bar_text = colorizeText(bar_text, "PRI_2", "")
+				percentageText = colorizeText(percentageText, "PRI_2", "")
 			} else if 80 <= percentage && percentage <= 100 {
-				bar_text = colorizeText(bar_text, "PRI_1")
-				percentageText = colorizeText(percentageText, "PRI_1")
+				bar_text = colorizeText(bar_text, "PRI_1", "")
+				percentageText = colorizeText(percentageText, "PRI_1", "")
 			}
-			doneCountText = colorizeText(doneCountText, "COLOR_DONE")
+			doneCountText = colorizeText(doneCountText, "COLOR_DONE", "")
 
 			durationText = formatDuration(prog.creationDate, true)
 		}
 
+		if priority != "" {
+			priority += " "
+		}
 		line := fmt.Sprintf(
-			"%s %s/%s(%s) %s %s (%s) %s",
+			"%s %s/%s(%s) %s %s (%s) %s%s",
 			idText, countText, doneCountText,
 			percentageText, bar_text,
-			durationText, unit, body,
+			durationText, unit, priority, body,
 		)
 		lines = append(lines, line)
 	}
@@ -325,9 +368,10 @@ func cmdCreate() {
 	unit := fs.String("unit", "", "Unit of progress measurement (required)")
 	count := fs.Int("count", 0, "Initial progress value (defaults to 0)")
 	doneCount := fs.Int("doneCount", 0, "Target completion value (required)")
+	priority := fs.String("priority", "", "Priority of the progress (defaults to empty string)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s create -body <body> -unit <unit>"+
-			"-doneCount <doneCount> [-count <count>]\n\n", os.Args[0])
+			"-doneCount <doneCount> [-count <count>] [-priority <priority>]\n\n", os.Args[0])
 		fs.PrintDefaults()
 	}
 	fs.Parse(os.Args[2:])
@@ -343,6 +387,7 @@ func cmdCreate() {
 		count:        *count,
 		doneCount:    *doneCount,
 		creationDate: time.Now(),
+		priority:     *priority,
 	})
 	writeData(taskFilepath, data)
 }
@@ -383,9 +428,10 @@ func cmdModify() {
 	unit := fs.String("unit", "", "Unit of progress measurement")
 	count := fs.Int("count", 0, "Initial progress value (defaults to 0)")
 	doneCount := fs.Int("doneCount", 0, "Target completion value")
+	priority := fs.String("priority", "random", "Priority of the progress")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s modify -id <id> [-name <name>] [-unit <unit>]"+
-			"[-count <count>] [-doneCount <doneCount>]\n At least one optional arg is required.\n\n", os.Args[0])
+			"[-count <count>] [-doneCount <doneCount>] [-priority <priority>]\n At least one optional arg is required.\n\n", os.Args[0])
 		fs.PrintDefaults()
 	}
 	fs.Parse(os.Args[2:])
@@ -395,7 +441,7 @@ func cmdModify() {
 		fs.Usage()
 		log.Fatalln("Required id was left out.")
 	}
-	if *body == "" && *unit == "" && *count == 0 && *doneCount == 0 {
+	if *body == "" && *unit == "" && *count == 0 && *doneCount == 0 && *priority == "noway" {
 		fs.Usage()
 		log.Fatalln("None of the flags were selected.")
 	}
@@ -411,6 +457,9 @@ func cmdModify() {
 	}
 	if *doneCount != 0 {
 		prog.doneCount = *doneCount
+	}
+	if *priority != "random" {
+		prog.priority = *priority
 	}
 	writeData(taskFilepath, data)
 }
@@ -467,9 +516,10 @@ func cmdEcho() {
 	unit := fs.Bool("unit", false, "Unit of progress measurement")
 	count := fs.Bool("count", false, "Current progress value")
 	doneCount := fs.Bool("doneCount", false, "Target completion value")
+	priority := fs.Bool("priority", false, "Priority of the progress")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s echo -id <id> [-body] [-unit] "+
-			"[-doneCount] [-count]\n "+
+			"[-doneCount] [-count] [-priority]\n "+
 			"One and only one argument besides id should be selected.\n\n", os.Args[0])
 		fs.PrintDefaults()
 	}
@@ -481,7 +531,7 @@ func cmdEcho() {
 		log.Fatalln("Required id was left out.")
 	}
 	trueCount := 0
-	for _, val := range []bool{*body, *unit, *count, *doneCount} {
+	for _, val := range []bool{*body, *unit, *count, *doneCount, *priority} {
 		if val {
 			trueCount++
 		}
@@ -498,6 +548,8 @@ func cmdEcho() {
 		fmt.Println(data[*id].count)
 	} else if *doneCount {
 		fmt.Println(data[*id].doneCount)
+	} else if *priority {
+		fmt.Println(data[*id].priority)
 	}
 }
 

@@ -26,6 +26,12 @@ export WHITE='${color FFFFFF}' # #FFFFFF
 export DARK_WHITE='${color c4c4c4}' # #c4c4c4
 export DEFAULT='${color DEF4ED}' # #DEF4ED
 
+export PRI_A=$PURPLE
+export PRI_B=$LIGHT_PINK
+export PRI_C=$LIGHT_RED
+export PRI_D=$LIGHT_CYAN
+export PRI_E=$WHITE
+
 export PRI_1=$PURPLE
 export PRI_2=$LIGHT_PINK
 export PRI_3=$LIGHT_RED
@@ -34,7 +40,7 @@ export PRI_5=$WHITE
 
 export COLOR_DONE=$LIGHT_GREY
 export COLOR_PLUS=$LIGHT_JADE
-export COLOR_DASH=$BLUE
-export COLOR_ATSIGN=$CYAN
+export COLOR_DASH=$CYAN
+export COLOR_ATSIGN=$BLUE
 export COLOR_DATE=$BROWN
 export COLOR_NUMBER=$LIGHT_GREY
