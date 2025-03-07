@@ -25,6 +25,7 @@ export BROWN='${color c48660}' # #c48660
 export WHITE='${color FFFFFF}' # #FFFFFF
 export DARK_WHITE='${color c4c4c4}' # #c4c4c4
 export DEFAULT='${color DEF4ED}' # #DEF4ED
+export BRIGHT_RED='${color C17672}' # #C17672
 
 export PRI_A=$PURPLE
 export PRI_B=$LIGHT_PINK
@@ -44,3 +45,4 @@ export COLOR_DASH=$CYAN
 export COLOR_ATSIGN=$BLUE
 export COLOR_DATE=$BROWN
 export COLOR_NUMBER=$LIGHT_GREY
+export COLOR_LINE=$BRIGHT_RED

@@ -23,6 +23,7 @@ type progress struct {
 	doneCount    int
 	creationDate time.Time
 	priority     string
+	category     string
 }
 
 var (
@@ -104,6 +105,7 @@ func readData(filename string) []progress {
 				doneCount:    doneCount,
 				creationDate: creationDate,
 				priority:     values[5],
+				category:     values[6],
 			},
 		)
 	}
@@ -118,13 +120,14 @@ func writeData(filename string, data []progress) {
 			log.Fatalf("Error occured while marshalling creation date to json.\n%v\n%v\n", prog.creationDate, err)
 		}
 		text += fmt.Sprintf(
-			"%s;%s;%d;%d;%s;%s\n",
+			"%s;%s;%d;%d;%s;%s;%s\n",
 			prog.body,
 			prog.unit,
 			prog.count,
 			prog.doneCount,
 			string(jsonDate),
 			prog.priority,
+			prog.category,
 		)
 	}
 	err := os.WriteFile(filename, []byte(text), 0644)
@@ -246,6 +249,16 @@ func cmdPrint() {
 	}
 
 	slices.SortFunc(data, func(a, b progress) int {
+		if a.category == "" && b.category != "" {
+			return 1
+		} else if a.category != "" && b.category == "" {
+			return -1
+		} else if a.category < b.category {
+			return -1
+		} else if a.category > b.category {
+			return 1
+		}
+
 		if a.priority != "" && b.priority == "" {
 			return -1
 		} else if a.priority == "" && b.priority != "" {
@@ -267,6 +280,25 @@ func cmdPrint() {
 			return 0
 		}
 	})
+	lineMax := slices.MaxFunc(data, func(a, b progress) int {
+		if len(a.unit)+len(a.priority)+len(a.body) >
+			len(b.unit)+len(b.priority)+len(b.body) {
+			return 1
+		} else {
+			return -1
+		}
+	})
+	lineMaxSize := 34 + 4 + len(lineMax.unit) + len(lineMax.priority) + len(lineMax.body)
+	curCategory := "noway"
+	getCategoryLine := func(category string, size int) string {
+		var prefix string
+		if len(category) > 0 {
+			prefix = fmt.Sprintf("> %s ", category)
+		} else {
+			prefix = ""
+		}
+		return prefix + strings.Repeat("—", size-len(prefix))
+	}
 	var lines []string
 	for _, prog := range data {
 		id := prog.id
@@ -285,7 +317,18 @@ func cmdPrint() {
 			idText         = fmt.Sprintf("%-2d", id)
 		)
 
+		var categoryLine string
+		if prog.category != curCategory || curCategory == "noway" {
+			curCategory = prog.category
+			categoryLine = "-"
+		}
+		if categoryLine != "" {
+			categoryLine = getCategoryLine(curCategory, lineMaxSize)
+		}
 		if *colorize {
+			if categoryLine != "" {
+				categoryLine = colorizeText(categoryLine, "BRIGHT_RED", "WHITE")
+			}
 			var defaultColor string
 			if priority != "" {
 				switch priority[1] {
@@ -348,6 +391,9 @@ func cmdPrint() {
 			durationText = formatDuration(prog.creationDate, true)
 		}
 
+		if categoryLine != "" {
+			lines = append(lines, categoryLine)
+		}
 		if priority != "" {
 			priority += " "
 		}
@@ -357,6 +403,7 @@ func cmdPrint() {
 			percentageText, bar_text,
 			durationText, unit, priority, body,
 		)
+		// line = fmt.Sprintf("%d+%d=%d -- %s", prefixCount, postfixCount, totalCount, line)
 		lines = append(lines, line)
 	}
 	fmt.Println(strings.Join(lines, "\n"))
@@ -369,9 +416,11 @@ func cmdCreate() {
 	count := fs.Int("count", 0, "Initial progress value (defaults to 0)")
 	doneCount := fs.Int("doneCount", 0, "Target completion value (required)")
 	priority := fs.String("priority", "", "Priority of the progress (defaults to empty string)")
+	category := fs.String("category", "", "Category in which the progress belongs to (defaults to empty string)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s create -body <body> -unit <unit>"+
-			"-doneCount <doneCount> [-count <count>] [-priority <priority>]\n\n", os.Args[0])
+			"-doneCount <doneCount> [-count <count>] [-priority <priority>]"+
+			"[-category <category>]\n\n", os.Args[0])
 		fs.PrintDefaults()
 	}
 	fs.Parse(os.Args[2:])
@@ -388,6 +437,7 @@ func cmdCreate() {
 		doneCount:    *doneCount,
 		creationDate: time.Now(),
 		priority:     *priority,
+		category:     *category,
 	})
 	writeData(taskFilepath, data)
 }
@@ -428,10 +478,12 @@ func cmdModify() {
 	unit := fs.String("unit", "", "Unit of progress measurement")
 	count := fs.Int("count", 0, "Initial progress value (defaults to 0)")
 	doneCount := fs.Int("doneCount", 0, "Target completion value")
-	priority := fs.String("priority", "random", "Priority of the progress")
+	priority := fs.String("priority", "noway", "Priority of the progress")
+	category := fs.String("category", "noway", "Category of the progress")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s modify -id <id> [-name <name>] [-unit <unit>]"+
-			"[-count <count>] [-doneCount <doneCount>] [-priority <priority>]\n At least one optional arg is required.\n\n", os.Args[0])
+			"[-count <count>] [-doneCount <doneCount>] [-priority <priority>] [-category <category>]\n "+
+			"At least one optional arg is required.\n\n", os.Args[0])
 		fs.PrintDefaults()
 	}
 	fs.Parse(os.Args[2:])
@@ -441,7 +493,7 @@ func cmdModify() {
 		fs.Usage()
 		log.Fatalln("Required id was left out.")
 	}
-	if *body == "" && *unit == "" && *count == 0 && *doneCount == 0 && *priority == "noway" {
+	if *body == "" && *unit == "" && *count == 0 && *doneCount == 0 && *priority == "noway" && *category == "noway" {
 		fs.Usage()
 		log.Fatalln("None of the flags were selected.")
 	}
@@ -458,8 +510,11 @@ func cmdModify() {
 	if *doneCount != 0 {
 		prog.doneCount = *doneCount
 	}
-	if *priority != "random" {
+	if *priority != "noway" {
 		prog.priority = *priority
+	}
+	if *category != "noway" {
+		prog.category = *category
 	}
 	writeData(taskFilepath, data)
 }
@@ -517,9 +572,10 @@ func cmdEcho() {
 	count := fs.Bool("count", false, "Current progress value")
 	doneCount := fs.Bool("doneCount", false, "Target completion value")
 	priority := fs.Bool("priority", false, "Priority of the progress")
+	category := fs.Bool("category", false, "Category of the progress")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s echo -id <id> [-body] [-unit] "+
-			"[-doneCount] [-count] [-priority]\n "+
+			"[-doneCount] [-count] [-priority] [-category]\n "+
 			"One and only one argument besides id should be selected.\n\n", os.Args[0])
 		fs.PrintDefaults()
 	}
@@ -531,7 +587,7 @@ func cmdEcho() {
 		log.Fatalln("Required id was left out.")
 	}
 	trueCount := 0
-	for _, val := range []bool{*body, *unit, *count, *doneCount, *priority} {
+	for _, val := range []bool{*body, *unit, *count, *doneCount, *priority, *category} {
 		if val {
 			trueCount++
 		}
@@ -550,6 +606,8 @@ func cmdEcho() {
 		fmt.Println(data[*id].doneCount)
 	} else if *priority {
 		fmt.Println(data[*id].priority)
+	} else if *category {
+		fmt.Println(data[*id].category)
 	}
 }
 
